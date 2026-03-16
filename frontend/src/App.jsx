@@ -33,21 +33,31 @@ function App() {
 
   return (
     <div className="app-container">
-      <header className="header">
-        <h1>Wealth Builder 2025: Portfolio Rebalancing</h1>
+      <header className="header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '1.5rem' }}>
+        <div>
+          <h1 style={{ marginBottom: '0.25rem' }}>Wealth Builder 2025: Portfolio Rebalancing</h1>
+          <p className="text-muted" style={{ fontSize: '1.05rem', letterSpacing: '0.02em' }}>
+            Intelligent Portfolio Drift & Rebalancing Engine
+          </p>
+        </div>
         
-        {/* Client Selector Dropdown */}
-        <select 
-          className="client-select"
-          value={activeClient}
-          onChange={(e) => setActiveClient(e.target.value)}
-        >
-          {clients.map(c => (
-            <option key={c.client_id} value={c.client_id}>
-              {c.client_name} (Total Inv: ₹{c.total_invested.toLocaleString()})
-            </option>
-          ))}
-        </select>
+        <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
+          {/* Client Selector Dropdown */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <span className="text-muted" style={{ fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Switch Client</span>
+            <select 
+              className="client-select"
+              value={activeClient}
+              onChange={(e) => setActiveClient(e.target.value)}
+            >
+              {clients.map(c => (
+                <option key={c.client_id} value={c.client_id}>
+                  {c.client_name} • ₹{c.total_invested.toLocaleString()}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
       </header>
 
       {/* Navigation Tabs */}
