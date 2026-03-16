@@ -1,0 +1,147 @@
+📊 
+model_portfolio.db
+ — Documentation
+What Is This File?
+model_portfolio.db
+ is a SQLite database pre-loaded with data for a wealth management / portfolio rebalancing problem from the finance industry.
+
+It simulates a scenario where a financial advisor (or robo-advisor platform) manages multiple clients' mutual fund investments and needs to keep their portfolios aligned with a model portfolio — a standardized, target allocation that the firm recommends.
+
+Business Context
+Problem: Clients invest in various mutual funds over time. Their actual holdings drift away from the firm's recommended "model portfolio" due to market movements and ad-hoc investments. A portfolio manager needs to identify what to BUY or SELL for each client to bring them back in line.
+
+This is called Portfolio Rebalancing — a core, everyday task in wealth management.
+
+Database Schema
+clients — Who We're Managing
+sql
+CREATE TABLE clients (
+  client_id      TEXT PRIMARY KEY,
+  client_name    TEXT NOT NULL,
+  total_invested REAL NOT NULL
+);
+client_id	client_name	total_invested
+C001	Amit Sharma	₹5,00,000
+C002	Priya Nair	₹7,50,000
+C003	Rohan Mehta	₹2,50,000
+model_funds — The Target Allocation
+The "gold standard" portfolio that every client's holdings should mirror.
+
+sql
+CREATE TABLE model_funds (
+  fund_id        TEXT PRIMARY KEY,
+  fund_name      TEXT NOT NULL,
+  asset_class    TEXT NOT NULL CHECK(asset_class IN ('EQUITY','DEBT','GOLD')),
+  allocation_pct REAL NOT NULL
+);
+fund_id	fund_name	asset_class	allocation_pct
+F001	Mirae Asset Large Cap Fund	EQUITY	30%
+F002	Parag Parikh Flexi Cap Fund	EQUITY	25%
+F003	HDFC Mid Cap Opportunities Fund	EQUITY	20%
+F004	ICICI Prudential Bond Fund	DEBT	15%
+F005	Nippon India Gold ETF	GOLD	10%
+Asset mix: 75% Equity · 15% Debt · 10% Gold
+
+client_holdings — What Clients Actually Hold
+sql
+CREATE TABLE client_holdings (
+  holding_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+  client_id     TEXT NOT NULL,
+  fund_id       TEXT NOT NULL,
+  fund_name     TEXT NOT NULL,
+  current_value REAL NOT NULL,
+  FOREIGN KEY(client_id) REFERENCES clients(client_id)
+);
+Key Observations:
+
+Amit (C001): Holds Axis Bluechip Fund (not in model) + zero holding in HDFC Mid Cap
+Priya (C002): Holds SBI Bluechip + DSP Tax Saver (not in model) + no Gold exposure
+Rohan (C003): Clean — holds exactly the 5 model funds ✅
+rebalance_sessions — Rebalancing Snapshots (empty)
+Tracks each time a rebalancing plan is generated for a client.
+
+sql
+CREATE TABLE rebalance_sessions (
+  session_id      INTEGER PRIMARY KEY AUTOINCREMENT,
+  client_id       TEXT NOT NULL,
+  created_at      TEXT NOT NULL,
+  portfolio_value REAL NOT NULL,
+  total_to_buy    REAL NOT NULL,
+  total_to_sell   REAL NOT NULL,
+  net_cash_needed REAL NOT NULL,
+  status          TEXT NOT NULL DEFAULT 'PENDING'
+                  CHECK(status IN ('PENDING','APPLIED','DISMISSED'))
+);
+rebalance_items — Line-by-Line Actions (empty)
+Each fund-level BUY/SELL/REVIEW instruction within a session.
+
+sql
+CREATE TABLE rebalance_items (
+  item_id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  session_id         INTEGER NOT NULL,
+  fund_id            TEXT NOT NULL,
+  fund_name          TEXT NOT NULL,
+  action             TEXT NOT NULL CHECK(action IN ('BUY','SELL','REVIEW')),
+  amount             REAL NOT NULL,
+  current_pct        REAL NOT NULL,
+  target_pct         REAL,
+  post_rebalance_pct REAL,
+  is_model_fund      INTEGER NOT NULL CHECK(is_model_fund IN (0,1))
+);
+Note: rebalance_sessions and rebalance_items are empty — this is the core feature you need to build.
+
+What You Can Build
+🥇 Core Feature (Must Have)
+Portfolio Rebalancing Engine
+
+For any selected client:
+
+Fetch their holdings and compute current_pct per fund (current_value / total portfolio value)
+Compare against model_funds.allocation_pct
+Generate:
+BUY → fund is underweight vs. model target
+SELL → fund is overweight vs. model target
+REVIEW → fund not in model (e.g., Axis Bluechip for Amit) — candidate for exit
+Save session + items to rebalance_sessions / rebalance_items
+Allow advisor to Apply or Dismiss the plan
+🥈 Good-to-Have Features
+Feature	Description
+Client Dashboard	Overview of all clients, portfolio sizes, drift status
+Visual Allocation Charts	Pie/bar chart: current vs. target allocation
+Drift Indicator	Show how far off a client is (e.g., ±% from model)
+Session History	Show past rebalancing sessions per client
+Asset Class Summary	Group by EQUITY/DEBT/GOLD and show deviation
+🥉 Bonus / Impress Features
+Feature	Description
+"What-If" Simulator	Let user input fresh investment amount and see what to buy
+Threshold Filter	Only flag funds deviating beyond X% (e.g., 2%)
+Export to PDF/CSV	Download the rebalancing report
+Rebalancing Logic (Pseudocode)
+portfolio_value = SUM(current_value) for client
+for each holding:
+    current_pct = holding.current_value / portfolio_value * 100
+for each model_fund:
+    target_value = model_fund.allocation_pct / 100 * portfolio_value
+    current_value = client's holding in this fund (0 if not held)
+    diff = target_value - current_value
+    if diff > 0  → BUY  (amount = diff)
+    if diff < 0  → SELL (amount = abs(diff))
+for each holding NOT in model_funds:
+    → REVIEW / flag for exit
+Suggested Tech Stack
+Layer	Recommendation
+Backend	Python (Flask/FastAPI) or Node.js (Express)
+Frontend	React or plain HTML + JS
+DB	SQLite via better-sqlite3 (Node) or sqlite3 (Python)
+Charts	Chart.js or Recharts
+What the Evaluators Will Ask
+"Walk me through how you compute what to BUY/SELL."
+"How does your app handle a fund the client holds but isn't in the model?"
+"What does the REVIEW action mean and when is it triggered?"
+"What's stored in rebalance_sessions and why?"
+"How would you handle a client adding fresh cash — does your logic change?"
+Summary
+What exists	What you build
+Client data + model targets + holdings	Rebalancing engine (BUY/SELL/REVIEW logic)
+Empty rebalance_sessions + rebalance_items	API + UI to generate & store rebalancing plans
+3 clients with deliberate drift	Dashboard showing drift and per-client reports
